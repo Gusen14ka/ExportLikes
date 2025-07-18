@@ -18,13 +18,6 @@
 
 QtSpotifyClient::QtSpotifyClient(QObject* parent)
     : QObject(parent)
-    //, io_service_(SpotifyIoService::create())
-    //, io_ctx_(std::make_shared<boost::asio::io_context>())
-    //, sp_client_(std::make_unique<SpotifyClient>(io_service_))
-    //, authSrv_(std::make_unique<AuthorizationServer>(
-    //      io_service_, 8888))
-    //, workGuard_(boost::asio::make_work_guard(*io_ctx_))
-    //, ioThread_()
 {
     qDebug() << "Creating components...";
 

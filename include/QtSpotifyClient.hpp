@@ -43,8 +43,6 @@ private:
     QString jsonPath_;
     QString authorizationCode_;
 
-
-
     std::unique_ptr<SpotifyClient> sp_client_;
     std::unique_ptr<AuthorizationServer> authSrv_;
 };

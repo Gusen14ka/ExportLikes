@@ -1,0 +1,113 @@
+# Игнорируем все бинарные и генерируемые файлы
+*.exe
+*.dll
+*.so
+*.a
+*.lib
+*.dylib
+*.o
+*.obj
+*.ilk
+*.pdb
+*.exp
+*.manifest
+*.cache
+
+# Папки сборки (разные системы и IDE)
+build*/
+CMakeFiles/
+out/
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+.vs/
+.idea/
+*.vcxproj.*
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.ncb
+*.user
+*.pro.user
+*.autosave
+
+# Qt специфичные файлы
+moc_*
+qrc_*
+ui_*
+*.moc
+*.qrc
+*.qm
+Makefile*
+*.qmake.stash
+.qmake.stash
+
+# Логи и временные файлы
+*.log
+*.tmp
+*.swp
+*~
+*.bak
+*.orig
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Файлы пакетных менеджеров
+.vcpkg/
+conanbuildinfo.cmake
+conaninfo.txt
+
+# Автогенерируемые файлы CMake
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+
+# Файлы зависимостей
+dependencies/
+third_party/
+external/
+libs/
+*.dylib
+*.dll
+*.so.*
+*.a
+
+# Документация
+doc/
+docs/
+*.doc
+*.pdf
+
+# Тестовые данные
+test_data/
+*.test
+*.testdata
+
+# Исключения (белый список)
+!*.cpp
+!*.hpp
+!*.h
+!*.c
+!*.txt
+!*.md
+!*.cmake
+!CMakeLists.txt
+!*.pro
+!*.pri
+!*.qrc
+!*.ui
+!*.conf
+!*.json
+!LICENSE
+
+#Some ussless files
+include/Client.hpp
+src/Client.cpp

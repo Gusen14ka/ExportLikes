@@ -31,6 +31,9 @@ public:
     boost::asio::awaitable<void> removeLastN(std::size_t n,
                                              std::function<void(int, int)> progressCb);
 
+    // Check the validity of access token
+    bool hasValidAccessToken() const;
+
     // Setter clientId_
     void setClientId(std::string id){ clientId_ = id; }
 
@@ -43,8 +46,8 @@ public:
     // Getter authorizeCode
     std::string getAuthorizationCode() { return authorizationCode_; }
 
-    // Getter: io_context - send ref
-    //boost::asio::io_context& getContext(){ return ssl_ctx_; }
+    // Getter access token
+    std::string getAccessToken() { return accessToken_; }
 private:
     // Send DELETE-request to spotify
     // to remove tracks "Like library" by their ids
@@ -72,6 +75,5 @@ private:
 
     std::string accessToken_;
     std::string refreshToken_;
-    int expiresIn_;
-    std::chrono::steady_clock::time_point tokenReceivedTime_;
+    std::chrono::steady_clock::time_point tokenExpiry_;
 };

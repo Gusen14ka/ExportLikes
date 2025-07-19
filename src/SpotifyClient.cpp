@@ -179,9 +179,11 @@ boost::asio::awaitable<void> SpotifyClient::fetchTokens(std::string code){
         QJsonObject obj = doc.object();
         accessToken_ = obj["access_token"].toString().toStdString();
         refreshToken_ = obj["refresh_token"].toString().toStdString();
-        expiresIn_ = obj["expires_in"].toInt();
+        int expiresIn = obj["expires_in"].toInt();
+        tokenExpiry_ = std::chrono::steady_clock::now() + std::chrono::seconds(expiresIn);
 
         qDebug() << "Access token received.";
+        //qDebug() << "tokenExpiry_ = " << expiresIn;
 
     }
     catch(std::exception& e){
@@ -257,8 +259,8 @@ boost::asio::awaitable<std::string> SpotifyClient::searchTrack(
             co_return "";
         }
 
-        qDebug() << "searchTrack response status:" << res.result_int();
-        qDebug() << "response body:" << QString::fromStdString(res.body());
+        //qDebug() << "searchTrack response status:" << res.result_int();
+        //qDebug() << "response body:" << QString::fromStdString(res.body());
 
         //Check OK status
         if(res.result_int() != 200 && res.result_int() != 201){
@@ -423,8 +425,8 @@ boost::asio::awaitable<void> SpotifyClient::addTracksToLibrary(
         if(ec){
             throw system_error{ec};
         }
-        qWarning() << "addTracks response status:" << res.result_int();
-        qWarning() << "addTracks response body:" << QString::fromStdString(res.body());
+        //qWarning() << "addTracks response status:" << res.result_int();
+        //qWarning() << "addTracks response body:" << QString::fromStdString(res.body());
 
         // Check OK status
         int code = res.result_int();
@@ -612,4 +614,9 @@ boost::asio::awaitable<void> SpotifyClient::sendRemoveReq(const std::vector<std:
         qWarning() << "Error in sendRemoveReq: " << e.what();
     }
     co_return;
+}
+
+bool SpotifyClient::hasValidAccessToken() const{
+    return !accessToken_.empty()
+    && std::chrono::steady_clock::now() < tokenExpiry_;
 }

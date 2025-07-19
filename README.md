@@ -31,8 +31,14 @@ cd spotify-export-likes
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j$(nproc)
+// For python script:
+pip install pyinstaller
+pyinstaller --onefile export_yandex_music_likes.py
 ```
 
+```bash
+pip install pyinstaller
+pyinstaller --onefile my_tool.py
 ### Windows
 ```powershell
 git clone https://github.com/yourusername/spotify-export-likes.git
@@ -40,6 +46,9 @@ cd spotify-export-likes
 mkdir build && cd build
 cmake -G "Visual Studio 17 2022" -A x64 ..
 cmake --build . --config Release
+// For python script:
+pip install pyinstaller
+pyinstaller --onefile export_yandex_music_likes.py
 ```
 
 ## Usage 🚀

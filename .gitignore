@@ -108,6 +108,7 @@ test_data/
 !*.json
 !LICENSE
 
+
 #Some ussless files
 include/Client.hpp
 src/Client.cpp

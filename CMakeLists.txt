@@ -98,6 +98,7 @@ set_target_properties(ExportLikes PROPERTIES
     AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/forms"
 )
 
+
 # Link libraries
 target_link_libraries(ExportLikes PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
@@ -107,6 +108,12 @@ target_link_libraries(ExportLikes PRIVATE
     Boost::serialization
     CURL::libcurl
     OpenSSL::SSL
+)
+
+add_custom_command(TARGET ExportLikes POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/scripts"
+        "$<TARGET_FILE_DIR:ExportLikes>/scripts"
 )
 
 # Добавляем /bigobj только для MSVC

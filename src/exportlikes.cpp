@@ -4,6 +4,10 @@
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QStandardPaths>
+#include <QDir>
+#include <QFile>
+#include <QProcess>
 
 ExportLikes::ExportLikes(QWidget* parent)
     : QMainWindow(parent),
@@ -20,36 +24,109 @@ ExportLikes::ExportLikes(QWidget* parent)
 
     connect(ui->removeButton, &QPushButton::clicked, this, &ExportLikes::onRemoveTracksClicked);
     connect(spotifyClient_, &QtSpotifyClient::finishedRemoving, this, &ExportLikes::onFinishedRemoving);
+
+    connect(ui->authButton, &QPushButton::clicked, this, &ExportLikes::onAuthButtonClicked);
+    connect(spotifyClient_, &QtSpotifyClient::reauthorization, this, &ExportLikes::onReauthorization);
+    connect(spotifyClient_, &QtSpotifyClient::finishedAuthorization, this, &ExportLikes::onFinishedAuthorization);
+
+    connect(ui->chbDeveloper, &QCheckBox::checkStateChanged, this, &ExportLikes::onCheckDeleveloper);
+    connect(ui->getTracksButton, &QPushButton::clicked, this, &ExportLikes::onGetTracksClicked);
+
+    loadEnvFile();
+}
+
+void ExportLikes::loadEnvFile(){
+    QString configDir = QStandardPaths::writableLocation(
+        QStandardPaths::AppConfigLocation);
+    QDir().mkpath(configDir);
+    QString envPath = configDir + "/.env";
+
+    QFile f(envPath);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)){
+        onLogMessage(".env not found or cannot open.");
+        return;
+    }
+    while (!f.atEnd()){
+        QString line = f.readLine().trimmed();
+        if(line.startsWith("YANDEX_TOKEN=")){
+            QString token = line.section("=", 1);
+            ui->leYandexToken->setText(token);
+            onLogMessage("Loaded token from .env");
+            break;
+        }
+    }
+    f.close();
+}
+
+bool ExportLikes::saveEnvFile(const QString& token){
+    QString configDir = QStandardPaths::writableLocation(
+        QStandardPaths::AppConfigLocation);
+    QDir().mkdir(configDir);
+    QString envPath = configDir + "/.env";
+
+    QFile f(envPath);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        onLogMessage("Error: Cannot write .env");
+        return false;
+    }
+
+    ui->logView->append(".env path: " + envPath);
+
+    QTextStream out(&f);
+    out << "YANDEX_TOKEN=" << token << "\n";
+    f.close();
+    onLogMessage("Token saved to .env");
+    return true;
+}
+
+void ExportLikes::onGetTracksClicked(){
+    QString token = ui->leYandexToken->text().trimmed();
+    if(token.isEmpty()){
+        QMessageBox::warning(this, "Error", "Please enter the Yandex Music token. If you don't know what is it and how to get it, read the guide");
+        return;
+    }
+
+    saveEnvFile(token);
+
+    // Prepare to launch Py scripte
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString scriptPath = appDir + "/scripts/export_yandex_music_likes.exe";
+    if(!QFile::exists(scriptPath)){
+        qDebug() << "Script not found";
+        return;
+    }
+
+    // Launch script
+    // Connect output
+    auto* proc = new QProcess(this);
+    connect(proc, &QProcess::readyReadStandardOutput, [this, proc](){
+        ui->logView->append(QString::fromLocal8Bit(proc->readAllStandardOutput()));
+    });
+
+    // Connect errors
+    connect(proc, &QProcess::readyReadStandardError, [this,proc]() {
+        ui->logView->append("<font color=\"red\">" +
+                      QString::fromLocal8Bit(proc->readAllStandardError()) +
+                      "</font>");
+    });
+
+    // Connect executing status
+    connect(proc, QOverload<int,QProcess::ExitStatus>::of(&QProcess::finished),
+            [this,proc](int code, QProcess::ExitStatus status){
+                ui->logView->append(
+                    code == 0 ? "Script finished successfully"
+                              : QString("<font color=\"red\">Script crashed, exit code %1</font>")
+                                    .arg(code)
+                    );
+                proc->deleteLater();
+            });
+
+    // Start script
+    ui->logView->append("Starting script...");
+    proc->start(scriptPath);
 }
 
 void ExportLikes::onAddTracksClicked(){
-    // Entering a clientId
-    bool ok = false;
-    QString clientId = QInputDialog::getText(
-        this,
-        "Client Id",
-        "Enter Spotify Client ID:",
-        QLineEdit::Normal,
-        QString(),
-        &ok
-    );
-    if(!ok || clientId.isEmpty()){
-        return;
-    }
-
-    // Entering redirectUri
-    QString redirectUri = QInputDialog::getText(
-        this,
-        "Redirect URI",
-        "Enter redirect URI:",
-        QLineEdit::Normal,
-        "http://localhost:8888/callback",
-        &ok
-        );
-    if(!ok || redirectUri.isEmpty()){
-        return;
-    }
-
     // Enter path to JSON-file
     QString path = QFileDialog::getOpenFileName(
         this,
@@ -62,8 +139,6 @@ void ExportLikes::onAddTracksClicked(){
     }
 
     // Configure the client
-    spotifyClient_->setClientId(clientId);
-    spotifyClient_->setRedirectUri(redirectUri);
     spotifyClient_->loadLocalJson(path);
 
     // Launch pipeline
@@ -95,30 +170,6 @@ void ExportLikes::onRemoveTracksClicked(){
 
     // Entering a clientId
     bool ok = false;
-    QString clientId = QInputDialog::getText(
-        this,
-        "Client Id",
-        "Enter Spotify Client ID:",
-        QLineEdit::Normal,
-        QString(),
-        &ok
-        );
-    if(!ok || clientId.isEmpty()){
-        return;
-    }
-
-    // Entering redirectUri
-    QString redirectUri = QInputDialog::getText(
-        this,
-        "Redirect URI",
-        "Enter redirect URI:",
-        QLineEdit::Normal,
-        "http://localhost:8888/callback",
-        &ok
-        );
-    if(!ok || redirectUri.isEmpty()){
-        return;
-    }
 
     int n = QInputDialog::getInt(
         this,
@@ -130,10 +181,6 @@ void ExportLikes::onRemoveTracksClicked(){
         1,
         &ok
     );
-
-    // Configure the client
-    spotifyClient_->setClientId(clientId);
-    spotifyClient_->setRedirectUri(redirectUri);
 
     spotifyClient_->removeLastNTracks(n);
     ui->removeButton->setEnabled(false);
@@ -148,5 +195,46 @@ void ExportLikes::onFinishedRemoving(bool success){
     else{
         QMessageBox::information(this, "Error",
                                  "Something gone wrong...");
+    }
+}
+
+void ExportLikes::onFinishedAuthorization(bool success){
+    ui->authButton->setEnabled(true);
+    if(success){
+        QMessageBox::information(this, "Done",
+                                 "Authorization is successful");
+        ui->addButton->setEnabled(true);
+        ui->removeButton->setEnabled(true);
+    }
+    else{
+        QMessageBox::information(this, "Error",
+                                 "Something gone wrong...");
+    }
+}
+
+void ExportLikes::onReauthorization(){
+    QMessageBox::information(this, "Reauthorization",
+                             "Your token has expired, please authorize again.");
+}
+
+void ExportLikes::onAuthButtonClicked(){
+    spotifyClient_->setClientId(ui->leClientId->text());
+    spotifyClient_->setRedirectUri(ui->leRedirectUri->text());
+
+    spotifyClient_->authorization();
+    ui->authButton->setEnabled(false);
+}
+
+void ExportLikes::onCheckDeleveloper(bool check){
+    if(check){
+        ui->leClientId->setEnabled(true);
+        ui->leRedirectUri->setEnabled(true);
+    }
+    else{
+        ui->leClientId->setText(spotifyClient_->getClientId());
+        ui->leClientId->setEnabled(false);
+
+        ui->leRedirectUri->setEnabled(false);
+        ui->leRedirectUri->setText(spotifyClient_->getRedirectUri());
     }
 }

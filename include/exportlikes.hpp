@@ -28,8 +28,16 @@ private slots:
     void onProgress(int current, int total);
     void onFinishedAdding(bool success);
     void onFinishedRemoving(bool success);
+    void onReauthorization();
+    void onFinishedAuthorization(bool success);
+    void onAuthButtonClicked();
+    void onCheckDeleveloper(bool check);
+    void onGetTracksClicked();
 
 private:
+    void loadEnvFile();
+    bool saveEnvFile(const QString& token);
+
     std::unique_ptr<Ui::ExportLikes> ui;
 
     QtSpotifyClient* spotifyClient_;

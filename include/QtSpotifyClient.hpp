@@ -15,17 +15,22 @@ class QtSpotifyClient : public QObject{
 public:
     explicit QtSpotifyClient(QObject* parent = nullptr);
     ~QtSpotifyClient() override;
+    QString getClientId() const {return clientId_; }
+    QString getRedirectUri() const {return redirectUri_; }
 public slots:
+    void authorization();
     void setClientId(const QString& id);
     void setRedirectUri(const QString& uri);
     void loadLocalJson(const QString& path);
     void addTracks();
     void removeLastNTracks(const std::size_t n);
 signals:
+    void reauthorization();
     void logMessage(const QString& msg);
     void progress(int current, int total);
     void finishedAdding(bool success);
     void finishedRemoving(bool success);
+    void finishedAuthorization(bool success);
 private:
     // Safe call signals
     template <typename Func, typename... Args>
@@ -38,10 +43,10 @@ private:
     boost::asio::awaitable<void> runAsyncAddingPipeline();
     boost::asio::awaitable<void> runAsyncRemovingPipeline(const std::size_t n);
 
-    QString clientId_;
-    QString redirectUri_;
+    QString clientId_ = QString("3b19f004deee439b89f3245afb8b84ed");
+    QString redirectUri_ = "http://127.0.0.1:8888/callback";
     QString jsonPath_;
-    QString authorizationCode_;
+    //QString authorizationCode_;
 
     std::unique_ptr<SpotifyClient> sp_client_;
     std::unique_ptr<AuthorizationServer> authSrv_;

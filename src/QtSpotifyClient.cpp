@@ -69,32 +69,25 @@ void QtSpotifyClient::loadLocalJson(const QString& path){
 }
 
 void QtSpotifyClient::addTracks(){
-    if (clientId_.isEmpty() ||
-        redirectUri_.isEmpty() || jsonPath_.isEmpty()) {
-        emit logMessage("Error: enter Client ID, Redirect URI and path to JSON.");
+    if (jsonPath_.isEmpty()) {
+        emit logMessage("Error: enter path to JSON.");
         emit finishedAdding(false);
         return;
     }
 
-    emit logMessage("1. Generating authorization code...");
-    auto authUrl = sp_client_->authorize();
-    qDebug() << "About to open browser";
-    QDesktopServices::openUrl(QUrl(QString::fromStdString(authUrl)));
-    qDebug() << "Browser opened, now co_spawn";
+    if(!sp_client_->hasValidAccessToken()){
+        emit reauthorization();
+        authorization();
+    }
 
-    // Start corutine that:
-    // 1. Wait for the code from server
-    // 2. Start pipeline
+
+    // Start corutine with pipeline
     boost::asio::co_spawn(
         GlobalIoService::instance(),
         [this]() -> boost::asio::awaitable<void>{
             QPointer<QtSpotifyClient> safeThis(this);
             try{
-                safeCall(safeThis, &QtSpotifyClient::logMessage, "2. Launch authorization server...");
-                std::string code = co_await authSrv_->asyncGetAuthorizationCode();
-                qDebug() << "About write code to client";
-                safeCall(safeThis, &QtSpotifyClient::logMessage, "3. Launch adding pipeline...");
-                sp_client_->setAuthorizationCode(code);
+                safeCall(safeThis, &QtSpotifyClient::logMessage, "# Launch adding pipeline...");
                 qDebug() << "About async pipeline";
                 co_await runAsyncAddingPipeline();
             }
@@ -115,15 +108,12 @@ boost::asio::awaitable<void> QtSpotifyClient::runAsyncAddingPipeline(){
     co_await t.async_wait(boost::asio::use_awaitable);
 
     try{
-        safeCall(safeThis, &QtSpotifyClient::logMessage, "4. Changing code to token...");
-        co_await sp_client_->fetchTokens(sp_client_->getAuthorizationCode());
-
-        safeCall(safeThis, &QtSpotifyClient::logMessage, "5. Liking tracks from json...");
+        safeCall(safeThis, &QtSpotifyClient::logMessage, "# Liking tracks from json...");
         co_await sp_client_->likeTracksFromJson(jsonPath_.toStdString(),
             [this, safeThis](int current, int total){
                 safeCall(safeThis, &QtSpotifyClient::progress, current, total);
-                safeCall(safeThis, &QtSpotifyClient::logMessage, QString("Added: %1/%2")
-                    .arg(current).arg(total));
+                //safeCall(safeThis, &QtSpotifyClient::logMessage, QString("Added: %1/%2")
+                //    .arg(current).arg(total));
             });
 
         safeCall(safeThis, &QtSpotifyClient::logMessage, "Finished!");
@@ -139,34 +129,19 @@ boost::asio::awaitable<void> QtSpotifyClient::runAsyncAddingPipeline(){
 
 
 void QtSpotifyClient::removeLastNTracks(const std::size_t n){
-    if (clientId_.isEmpty() ||
-        redirectUri_.isEmpty()) {
-        emit logMessage("Error: enter Client ID, Redirect URI.");
-        emit finishedRemoving(false);
-        return;
+    if(!sp_client_->hasValidAccessToken()){
+        emit reauthorization();
+        authorization();
     }
 
-    emit logMessage("1. Generating authorization code...");
-    auto authUrl = sp_client_->authorize();
-    qDebug() << "About to open browser";
-    QDesktopServices::openUrl(QUrl(QString::fromStdString(authUrl)));
-    qDebug() << "Browser opened, now co_spawn";
-
-
-    // Start corutine that:
-    // 1. Wait for the code from server
-    // 2. Start pipeline
+    // Start corutine with pipeline
 
     boost::asio::co_spawn(
         GlobalIoService::instance(),
         [this, n]() -> boost::asio::awaitable<void>{
             QPointer<QtSpotifyClient> safeThis(this);
             try{
-                safeCall(safeThis, &QtSpotifyClient::logMessage, "2. Launch authorization server...");
-                std::string code = co_await authSrv_->asyncGetAuthorizationCode();
-                qDebug() << "About write code to client";
-                safeCall(safeThis, &QtSpotifyClient::logMessage, "3. Launch removing pipeline...");
-                sp_client_->setAuthorizationCode(code);
+                safeCall(safeThis, &QtSpotifyClient::logMessage, "# Launch removing pipeline...");
                 qDebug() << "About async pipeline";
                 co_await runAsyncRemovingPipeline(n);
             }
@@ -186,14 +161,11 @@ boost::asio::awaitable<void> QtSpotifyClient::runAsyncRemovingPipeline(const std
     co_await t.async_wait(boost::asio::use_awaitable);
 
     try{
-        safeCall(safeThis, &QtSpotifyClient::logMessage, "4. Changing code to token...");
-        co_await sp_client_->fetchTokens(sp_client_->getAuthorizationCode());
-
-        safeCall(safeThis, &QtSpotifyClient::logMessage, "5. Removing tracks from \"Liked Library\"...");
+        safeCall(safeThis, &QtSpotifyClient::logMessage, "# Removing tracks from \"Liked Library\"...");
         co_await sp_client_->removeLastN(n,
             [this, safeThis](int current, int total){
                 safeCall(safeThis, &QtSpotifyClient::progress, current, total);
-                safeCall(safeThis, &QtSpotifyClient::logMessage, QString("Removed: %1/%2")                                                                                            .arg(current).arg(total));
+                //safeCall(safeThis, &QtSpotifyClient::logMessage, QString("Removed: %1/%2")                                                                                            .arg(current).arg(total));
         });
 
         safeCall(safeThis, &QtSpotifyClient::logMessage, "Finished!");
@@ -207,3 +179,40 @@ boost::asio::awaitable<void> QtSpotifyClient::runAsyncRemovingPipeline(const std
     co_return;
 }
 
+void QtSpotifyClient::authorization(){
+    if(clientId_.isEmpty() ||
+        redirectUri_.isEmpty()){
+        emit logMessage("Error:: enter Client ID an Redirect Uri");
+        emit finishedAuthorization(false);
+        return;
+    }
+    emit logMessage("# Generation authorization code...");
+    auto authUrl = sp_client_->authorize();
+    qDebug() << "About to open browser";
+    QDesktopServices::openUrl(QUrl(QString::fromStdString(authUrl)));
+    qDebug() << "Browser opened, now co_spawn";
+
+    boost::asio::co_spawn(
+        GlobalIoService::instance(),
+        [this]() -> boost::asio::awaitable<void>{
+            QPointer<QtSpotifyClient> safeThis(this);
+            try{
+                safeCall(safeThis, &QtSpotifyClient::logMessage, "# Launch authorization server...");
+                std::string code = co_await authSrv_->asyncGetAuthorizationCode();
+                qDebug() << "About write code to client";
+                safeCall(safeThis, &QtSpotifyClient::logMessage, "# Changing code to token...");
+                sp_client_->setAuthorizationCode(code);
+                co_await sp_client_->fetchTokens(sp_client_->getAuthorizationCode());
+                safeCall(safeThis, &QtSpotifyClient::logMessage, "Authorization Finished!");
+                safeCall(safeThis, &QtSpotifyClient::finishedAuthorization, true);
+            }
+            catch(std::exception& e){
+                safeCall(safeThis, &QtSpotifyClient::logMessage,
+                    QString("Error in authorization: %1").arg(e.what()));
+            }
+            co_return;
+        },
+        boost::asio::detached
+    );
+    qDebug() << "co_spawn returned";
+}

@@ -36,9 +36,6 @@ pip install pyinstaller
 pyinstaller --onefile export_yandex_music_likes.py
 ```
 
-```bash
-pip install pyinstaller
-pyinstaller --onefile my_tool.py
 ### Windows
 ```powershell
 git clone https://github.com/yourusername/spotify-export-likes.git
